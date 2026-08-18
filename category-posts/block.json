@@ -1,0 +1,248 @@
+{
+	"apiVersion": 2,
+	"name": "tiptip/category-posts-block",
+	"title": "Category Posts",
+	"category": "widgets",
+	"icon": "admin-post",
+	"description": "Adds a widget that shows the most recent posts from a single category.",
+	"textdomain": "category-posts",
+	"attributes": {
+		"title": {
+			"type": "string",
+			"default": "Category Posts"
+		},
+		"titleLink": {
+			"type": "boolean",
+			"default": false
+		},
+		"titleLinkTarget": {
+			"type": "boolean",
+			"default": false
+		},
+		"titleLevel": {
+			"type": "string",
+			"default": "Initial"
+		},
+		"titleLinkUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"hideTitle": {
+			"type": "boolean",
+			"default": false
+		},
+		"categorySuggestions": {
+			"type": "array",
+			"default": []
+		},
+		"selectCategories": {
+			"type": "array",
+			"default": []
+		},
+		"categories": {
+			"type": "string",
+			"default": ""
+		},
+		"num": {
+			"type": "string",
+			"default": 10
+		},
+		"offset": {
+			"type": "integer",
+			"default": 1
+		},
+		"orderBy": {
+			"type": "string",
+			"default": "date"
+		},
+		"status": {
+			"type": "string",
+			"default": "publish"
+		},
+		"order": {
+			"type": "boolean",
+			"default": true
+		},
+		"excludeCurrentPost": {
+			"type": "boolean",
+			"default": false
+		},
+		"hideNoThumb": {
+			"type": "boolean",
+			"default": false
+		},
+		"sticky": {
+			"type": "boolean",
+			"default": false
+		},
+		"footerLinkText": {
+			"type": "string",
+			"default": ""
+		},
+		"footerLink": {
+			"type": "string",
+			"default": ""
+		},
+		"footerLinkTarget": {
+			"type": "boolean",
+			"default": false
+		},
+		"itemTitleLevel": {
+			"type": "string",
+			"default": "Inline"
+		},
+		"itemTitleLines": {
+			"type": "integer",
+			"default": 2
+		},
+		"thumbW": {
+			"type": "integer",
+			"default": 150
+		},
+		"thumbFluidWidth": {
+			"type": "integer",
+			"default": 100
+		},
+		"thumbH": {
+			"type": "integer",
+			"default": 150
+		},
+		"thumbHover": {
+			"type": "string",
+			"default": "none"
+		},
+		"hidePostTitles": {
+			"type": "boolean",
+			"default": false
+		},
+		"excerptRadio": {
+			"type": "string",
+			"default": "excerpt"
+		},
+		"excerptLines": {
+			"type": "integer",
+			"default": 4
+		},
+		"excerptLength": {
+			"type": "integer",
+			"default": 0
+		},
+		"excerptMoreText": {
+			"type": "string",
+			"default": ""
+		},
+		"excerptFilters": {
+			"type": "boolean",
+			"default": false
+		},
+		"commentNum": {
+			"type": "boolean",
+			"default": false
+		},
+		"disableCss": {
+			"type": "boolean",
+			"default": false
+		},
+		"disableFontStyles": {
+			"type": "boolean",
+			"default": false
+		},
+		"disableThemeStyles": {
+			"type": "boolean",
+			"default": false
+		},
+		"showPostFormat": {
+			"type": "string",
+			"default": "none"
+		},
+		"noCatChilds": {
+			"type": "boolean",
+			"default": false
+		},
+		"everythingIsLink": {
+			"type": "boolean",
+			"default": false
+		},
+		"presetDateFormat": {
+			"type": "string",
+			"default": "sitedate"
+		},
+		"dateFormat": {
+			"type": "string",
+			"default": ""
+		},
+		"datePastTime": {
+			"type": "string",
+			"default": "0"
+		},
+		"template": {
+			"type": "string",
+			"default": "%title%\n\n%thumb%\n\n%excerpt%"
+		},
+		"textDoNotWrapThumb": {
+			"type": "boolean",
+			"default": false
+		},
+		"enableLoadmore": {
+			"type": "boolean",
+			"default": false
+		},
+		"loadmoreScrollTo": {
+			"type": "boolean",
+			"default": false
+		},
+		"loadmoreText": {
+			"type": "string",
+			"default": "Load More (%step%/%all%)"
+		},
+		"loadingText": {
+			"type": "string",
+			"default": "Loading..."
+		},
+		"dateRange": {
+			"type": "string",
+			"default": "off"
+		},
+		"startDate": {
+			"type": "string",
+			"default": ""
+		},
+		"endDate": {
+			"type": "string",
+			"default": ""
+		},
+		"daysAgo": {
+			"type": "integer",
+			"default": 30
+		},
+		"noMatchHandling": {
+			"type": "string",
+			"default": "nothing"
+		},
+		"noMatchText": {
+			"type": "string",
+			"default": ""
+		},
+		"defaultThunmbnail": {
+			"type": "integer",
+			"default": 0
+		},
+		"ver": {
+			"type": "string",
+			"default": "4.9.13"
+		},
+		"instanceId": {
+			"type": "number"
+		}
+	},
+	"supports": {
+		"align": true,
+		"html": false
+	},
+	"editorScript": "file:./build/index.js",
+	"editorStyle": [
+		"file:./build/style-index.css",
+		"file:./build/index.css"
+	],
+	"style": "file:./build/style-index.css"
+}

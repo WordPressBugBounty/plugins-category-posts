@@ -148,18 +148,27 @@ class Virtual_Widget {
 	/**
 	 *  Calculate the CSS rules required for the widget as is generated based on the settings passed at construction time
 	 *
-	 *  @param bool  $is_shortcode Indicated if rules are generated for a shortcode.
-	 *  @param array $rules "returned" Collection of CSS rules.
+	 *  @param string $context One of the CONTEXT_* constants. For backward compatibility
+	 *                         a bool is accepted as well, true being a shortcode and
+	 *                         false a widget.
+	 *  @param array  $rules   "returned" Collection of CSS rules.
 	 *
 	 *  @since 4.7
 	 */
-	public function getCSSRules( $is_shortcode, &$rules ) {
+	public function getCSSRules( $context, &$rules ) {
+
+		if ( is_bool( $context ) ) { // Signature used before 5.0.0.
+			$context = $context ? CONTEXT_SHORTCODE : CONTEXT_WIDGET;
+		}
+
+		$is_shortcode = ( CONTEXT_SHORTCODE === $context );
+
 		$ret = array();
 		$settings = self::$collection[ $this->id ];
 		$everything_is_link = isset( $settings['everything_is_link'] ) && $settings['everything_is_link'];
 
 		$widget_id = $this->id;
-		if ( ! $is_shortcode ) {
+		if ( CONTEXT_WIDGET === $context ) {
 			$widget_id .= '-internal';
 		}
 		$disable_css = isset( $settings['disable_css'] ) && $settings['disable_css'];
@@ -194,7 +203,7 @@ class Virtual_Widget {
 			// title height in lines.
 			if ( isset( $settings['template'] ) && preg_match( '/%title%/', $settings['template'] ) ) {
 				$styles['item_title_lines'] = '.cat-post-item .cat-post-title {overflow: hidden;text-overflow: ellipsis;white-space: initial;' .
-					'display: -webkit-box;-webkit-line-clamp: ' . $settings['item_title_lines'] . ';-webkit-box-orient: vertical;padding-bottom: 0 !important;}';
+					'display: -webkit-box;-webkit-line-clamp: ' . intval( $settings['item_title_lines'] ) . ';-webkit-box-orient: vertical;padding-bottom: 0 !important;}';
 			}
 
 			// wrap text around image.
@@ -207,7 +216,7 @@ class Virtual_Widget {
 					$selector_wrap_text = '.cpwp-wrap-text';
 				}
 				$styles['excerpt_lines'] = '.cat-post-item ' . $selector_wrap_text . ' {overflow: hidden;text-overflow: ellipsis;white-space: initial;' .
-					'display: -webkit-box;-webkit-line-clamp: ' . $settings['excerpt_lines'] . ';-webkit-box-orient: vertical;padding-bottom: 0 !important;}';
+					'display: -webkit-box;-webkit-line-clamp: ' . intval( $settings['excerpt_lines'] ) . ';-webkit-box-orient: vertical;padding-bottom: 0 !important;}';
 				// float text instead wrap and don't hide the excerpt if there is no space
 				$styles['float_min_nowrap'] = 'p.cpwp-excerpt-text {min-width: 120px;}';
 			}
@@ -316,7 +325,7 @@ class Virtual_Widget {
 			}
 			$ret['thumb_crop'] = '#' . $widget_id . ' .cat-post-thumbnail .cat-post-crop img {object-fit: cover; max-width: 100%; display: block;}';
 			$ret['thumb_crop_not_supported'] = '#' . $widget_id . ' .cat-post-thumbnail .cat-post-crop-not-supported img {width: 100%;}';
-			$ret['thumb_fluid_width'] = '#' . $widget_id . ' .cat-post-thumbnail {max-width:' . $settings['thumb_fluid_width'] . '%;}';
+			$ret['thumb_fluid_width'] = '#' . $widget_id . ' .cat-post-thumbnail {max-width:' . intval( $settings['thumb_fluid_width'] ) . '%;}';
 			$ret['thumb_styling'] = '#' . $widget_id . ' .cat-post-item img {margin: initial;}';
 		}
 
@@ -381,15 +390,17 @@ class Virtual_Widget {
 	 *
 	 *  Just a wrapper that output getCSSRules
 	 *
-	 * @param bool $is_shortcode Indicates if we are in the context os a shortcode.
+	 * @param string $context One of the CONTEXT_* constants, see getCSSRules().
 	 *
 	 *  @since 4.7
 	 */
-	public function outputCSS( $is_shortcode ) {
+	public function outputCSS( $context ) {
 		$rules = array();
-		getCSSRules( $is_shortcode, $rules );
-		foreach ( $rules as $rule ) {
-			echo "$rule\n";  // Xss off - raw css can not be html escaped.
+		$this->getCSSRules( $context, $rules );
+		foreach ( $rules as $group ) {
+			foreach ( $group as $rule ) {
+				echo "$rule\n";  // Xss off - raw css can not be html escaped.
+			}
 		}
 	}
 

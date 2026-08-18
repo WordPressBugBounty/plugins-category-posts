@@ -12,7 +12,7 @@ Plugin Name: Category Posts Widget
 Plugin URI: https://wordpress.org/plugins/category-posts/
 Description: Adds a widget that shows the most recent posts from a single category.
 Author: TipTopPress
-Version: 4.9.22
+Version: 5.0.0
 Author URI: https://tiptoppress.com
 Text Domain: category-posts
 Domain Path: /languages
@@ -25,19 +25,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const VERSION        = '4.9.22';
-const DOC_URL        = 'https://tiptoppress.com/category-posts-widget/documentation-4-9/';
-const PRO_URL        = 'https://tiptoppress.com/term-and-category-based-posts-widget/';
-const SUPPORT_URL    = 'https://wordpress.org/support/plugin/category-posts/';
-const SHORTCODE_NAME = 'catposts';
-const SHORTCODE_META = 'categoryPosts-shorcode';
-const WIDGET_BASE_ID = 'category-posts';
+const VERSION        	= '5.0.0';
+const DOC_URL        	= 'https://tiptoppress.com/category-posts-widget/documentation-4-9/';
+const PRO_URL        	= 'https://tiptoppress.com/term-and-category-based-posts-widget/';
+const SUPPORT_URL    	= 'https://wordpress.org/support/plugin/category-posts/';
+const SHORTCODE_NAME 	= 'catposts';
+const SHORTCODE_META 	= 'categoryPosts-shorcode';
+const WIDGET_BASE_ID 	= 'category-posts';
+const CONTEXT_WIDGET    = 'widget';
+const CONTEXT_SHORTCODE = 'shortcode';
+const CONTEXT_BLOCK     = 'block';
 
 require_once __DIR__ . '/class-virtual-widget.php';
 require_once __DIR__ . '/class-virtual-widgets-repository.php';
 require_once __DIR__ . '/class-widget.php';
 require_once __DIR__ . '/loadmore.php';
 require_once __DIR__ . '/localizeddate.php';
+require_once __DIR__ . '/cat-posts-block.php';
 
 /**
  *  Adds the "Customize" link to the Toolbar on edit mode.
@@ -92,11 +96,11 @@ function wp_head() {
 	$styles = array();
 
 	foreach ( $widget_repository->getShortcodes() as $widget ) {
-		$widget->getCSSRules( true, $styles );
+		$widget->getCSSRules( CONTEXT_SHORTCODE, $styles );
 	}
 
 	foreach ( $widget_repository->getWidgets() as $widget ) {
-		$widget->getCSSRules( false, $styles );
+		$widget->getCSSRules( CONTEXT_WIDGET, $styles );
 	}
 
 	if ( ! empty( $styles ) ) {
@@ -320,6 +324,18 @@ function upgrade_settings( $settings ) {
 		return default_settings();
 	}
 
+	// Whether $settings carries any of the pre-4.8 display flags that
+	// convert_settings_to_template() knows how to translate. A settings array
+	// that has none of these (e.g. a brand new instance, or a partial override
+	// such as array( 'title' => 'bla' ) passed straight to Virtual_Widget) is not
+	// a legacy instance just because it happens to be non-empty, and should keep
+	// falling through to the default template below instead of being converted
+	// into a bare title-only one.
+	$has_legacy_display_flags = (bool) array_intersect(
+		array( 'thumb', 'thumbTop', 'date', 'hide_post_titles', 'excerpt', 'comment_num', 'author' ),
+		array_keys( $settings )
+	);
+
 	if ( ! isset( $settings['ver'] ) ) {
 		/*
 		 * Pre 4.9 version.
@@ -333,6 +349,23 @@ function upgrade_settings( $settings ) {
 		}
 		if ( isset( $settings['hide_if_empty'] ) ) {
 			unset( $settings['hide_if_empty'] );
+		}
+
+		/*
+		 * Settings saved before the template system existed (pre 4.8) do not have a
+		 * 'template' key. shortcode_settings() and the customizer migration path both
+		 * build one from the old display flags (excerpt, thumb, thumbTop, date,
+		 * comment_num, author) via convert_settings_to_template() before calling this
+		 * function; the widget render path did not, so those choices were silently
+		 * lost the moment wp_parse_args() below filled 'template' in from
+		 * default_settings(). Do the same conversion here so every caller gets it,
+		 * but only when there is an actual legacy flag to convert - a brand new
+		 * instance (or a partial override with no display flags) has nothing to
+		 * convert and should keep falling through to the default template (which
+		 * includes %thumb%).
+		 */
+		if ( $has_legacy_display_flags && ( ! isset( $settings['template'] ) || ! $settings['template'] ) ) {
+			$settings['template'] = convert_settings_to_template( $settings );
 		}
 	} else {
 		if ( version_compare( '4.9.8', $settings['ver']) ) {
@@ -459,15 +492,6 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 				cat_posts_namespace.layout_img_size  = cat_posts_namespace.layout_img_size || {};
 
 				cat_posts_namespace.layout_wrap_text = {
-					<?php	/* Handle item */ echo "\r\n"; ?>
-					preWrap : function (widget) {
-						jQuery(widget).find('.cat-post-item').each(function(){
-							var _that = jQuery(this);
-							_that.find('p.cpwp-excerpt-text').addClass('cpwp-wrap-text');
-							_that.find('p.cpwp-excerpt-text').closest('div').wrap('<div class="cpwp-wrap-text-stage"></div>');
-						});
-						return;
-					},
 					<?php	/* Handle add class */ echo "\r\n"; ?>
 					add : function(_this){
 						var _that = jQuery(_this);
@@ -541,6 +565,21 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 
 				let widget = jQuery('#<?php echo esc_attr( $number ); ?>');
 
+				<?php	/* Gutenberg Editor load or change (DOM changes) */ echo "\r\n"; ?>
+				const observer = new MutationObserver(function () {
+					let widget = jQuery('#<?php echo esc_attr( $number ); ?>');
+					if (widget.length) {
+						cat_posts_namespace.layout_wrap_text.setClass(widget);
+					}
+				});
+
+				observer.observe(document.body, {
+					childList: true,
+					subtree: true,
+					characterData: true
+				});
+
+				<?php	/* DOM ready */ echo "\r\n"; ?>
 				jQuery( document ).ready(function () {
 					cat_posts_namespace.layout_wrap_text.setClass(widget);
 					<?php	/* No ratio calculation if one or more dimensions is set to 0 */ echo "\r\n"; ?>
@@ -560,7 +599,6 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 				});
 
 				// low-end mobile 
-				cat_posts_namespace.layout_wrap_text.preWrap(widget);
 				cat_posts_namespace.layout_wrap_text.setClass(widget);
 				<?php	/* No ratio calculation if one or more dimensions is set to 0 */ echo "\r\n"; ?>
 				<?php	if ( isset( $widgetsettings['thumb_w'] ) && 0 !== intval( $widgetsettings['thumb_w'] ) &&
@@ -693,6 +731,7 @@ function default_settings() {
 	return array(
 		'title'                  => __( 'Category Posts', 'category-posts' ),
 		'title_link'             => false,
+		'title_link_target'      => false,
 		'title_level'            => 'Initial',
 		'title_link_url'         => '',
 		'hide_title'             => false,
@@ -707,6 +746,7 @@ function default_settings() {
 		'sticky'                 => false,
 		'footer_link_text'       => '',
 		'footer_link'            => '',
+		'footer_link_target'     => false,
 		'item_title_level'       => 'Inline',
 		'item_title_lines'       => 2,
 		'thumb_w'                => get_option( 'thumbnail_size_w', 150 ),
@@ -714,6 +754,7 @@ function default_settings() {
 		'thumb_h'                => get_option( 'thumbnail_size_h', 150 ),
 		'thumb_hover'            => 'none',
 		'hide_post_titles'       => false,
+		'excerpt_radio'          => __( 'excerpt', 'category-posts' ),
 		'excerpt_lines'          => 4,
 		'excerpt_length'         => 0,
 		'excerpt_more_text'      => __( '', 'category-posts' ),
