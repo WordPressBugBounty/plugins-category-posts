@@ -1,5 +1,5 @@
 {
-	"apiVersion": 2,
+	"apiVersion": 3,
 	"name": "tiptip/category-posts-block",
 	"title": "Category Posts",
 	"category": "widgets",
@@ -111,6 +111,10 @@
 			"type": "string",
 			"default": "none"
 		},
+		"thumbSymbols": {
+			"type": "boolean",
+			"default": false
+		},
 		"hidePostTitles": {
 			"type": "boolean",
 			"default": false
@@ -177,7 +181,7 @@
 		},
 		"template": {
 			"type": "string",
-			"default": "%title%\n\n%thumb%\n\n%excerpt%"
+			"default": "%title%\n\n%thumb%\n%excerpt%"
 		},
 		"textDoNotWrapThumb": {
 			"type": "boolean",

@@ -49,6 +49,7 @@ function build_block_instance( $attributes ) {
 	$instance['thumb_fluid_width']      = isset( $attributes['thumbFluidWidth'] ) ? $attributes['thumbFluidWidth'] : 100;
 	$instance['thumb_h']                = isset( $attributes['thumbH'] ) ? $attributes['thumbH'] : 150;
 	$instance['thumb_hover']            = isset( $attributes['thumbHover'] ) ? $attributes['thumbHover'] : 'none';
+	$instance['thumb_symbols']          = isset( $attributes['thumbSymbols'] ) ? $attributes['thumbSymbols'] : false;
 	$instance['hide_post_titles']       = isset( $attributes['hidePostTitles'] ) ? $attributes['hidePostTitles'] : false;
 	$instance['excerpt_radio']          = isset( $attributes['excerptRadio'] ) ? $attributes['excerptRadio'] : 'excerpt';
 	$instance['excerpt_lines']          = isset( $attributes['excerptLines'] ) ? $attributes['excerptLines'] : 4;
@@ -65,7 +66,7 @@ function build_block_instance( $attributes ) {
 	$instance['preset_date_format']     = isset( $attributes['presetDateFormat'] ) ? $attributes['presetDateFormat'] : 'sitedate';
 	$instance['date_format']            = isset( $attributes['dateFormat'] ) ? $attributes['dateFormat'] : '';
 	$instance['date_past_time']         = isset( $attributes['datePastTime'] ) ? $attributes['datePastTime'] : '0';
-	$instance['template']               = isset( $attributes['template'] ) ? $attributes['template'] : "%title%\n\n%thumb%\n\n%excerpt%";
+	$instance['template']               = isset( $attributes['template'] ) ? $attributes['template'] : "%title%\n\n%thumb%\n%excerpt%";
 	$instance['text_do_not_wrap_thumb'] = isset( $attributes['textDoNotWrapThumb'] ) ? $attributes['textDoNotWrapThumb'] : false;
 	$instance['enable_loadmore']        = isset( $attributes['enableLoadmore'] ) ? $attributes['enableLoadmore'] : false;
 	$instance['loadmore_scrollTo']      = isset( $attributes['loadmoreScrollTo'] ) ? $attributes['loadmoreScrollTo'] : false;
@@ -78,7 +79,7 @@ function build_block_instance( $attributes ) {
 	$instance['no_match_handling']      = isset( $attributes['noMatchHandling'] ) ? $attributes['noMatchHandling'] : 'nothing';
 	$instance['no_match_text']          = isset( $attributes['noMatchText'] ) ? $attributes['noMatchText'] : '';
 	$instance['default_thunmbnail']     = isset( $attributes['defaultThunmbnail'] ) ? $attributes['defaultThunmbnail'] : 0;
-	$instance['ver']                    = isset( $attributes['ver'] ) ? $attributes['ver'] : '5.0.0';
+	$instance['ver']                    = isset( $attributes['ver'] ) ? $attributes['ver'] : '5.1.0';
 	$instance['context']                = CONTEXT_BLOCK;
 
 	return $instance;
@@ -136,6 +137,34 @@ function get_block_loadmore_settings( $id ) {
 	}
 	$settings = get_transient( 'cat_posts_block_' . $id );
 	return is_array( $settings ) ? $settings : false;
+}
+
+/**
+ * Collect everything the editor preview has to apply on its own.
+ *
+ * On the front end equal_cover_content_height() prints a script on wp_footer/
+ * admin_footer that refines the server-side "wrap the excerpt around the thumbnail"
+ * guess once the actual rendered heights are known. Neither hook runs for the REST
+ * request the ServerSideRender preview is built from, so the same flags are handed
+ * to src/edit.js as data instead, which applies the refinement itself.
+ *
+ * The conditions have to stay in sync with equal_cover_content_height().
+ *
+ * @param array $instance The widget instance data.
+ *
+ * @return array The wrap-text/image-ratio handling flags for the preview.
+ */
+function block_preview_config( $instance ) {
+	$wrap_text = ! ( isset( $instance['text_do_not_wrap_thumb'] ) && $instance['text_do_not_wrap_thumb'] );
+
+	// No ratio calculation if one or more dimensions is set to 0.
+	$img_size = isset( $instance['thumb_w'] ) && 0 !== intval( $instance['thumb_w'] ) &&
+		isset( $instance['thumb_h'] ) && 0 !== intval( $instance['thumb_h'] );
+
+	return array(
+		'wrapText' => $wrap_text,
+		'imgSize'  => $img_size,
+	);
 }
 
 /**
@@ -207,6 +236,18 @@ function render_category_posts_block( $attributes ) {
 				100
 			);
 		}
+
+		// Everything above hooks into wp_footer/admin_footer, which never run for the
+		// REST request the editor preview is built from - and a <script> element
+		// inside the returned markup would not be executed by React either
+		// (dangerouslySetInnerHTML does not run embedded scripts). So hand the editor
+		// the same wrap-text/image-ratio flags as inert JSON, src/edit.js applies
+		// them to the preview itself.
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			$ret .= '<script type="application/json" class="cpwp-block-preview-config">' .
+				wp_json_encode( block_preview_config( $instance ) ) .
+				'</script>';
+		}
 	} elseif ( 'text' === $instance['no_match_handling'] ) {
 		$ret = $widget->titleHTML( $before_title, $after_title, $instance );
 		$ret .= '<span class="cat-post-no-match">' . wp_kses_post( $instance['no_match_text'] ) . '</span>';
@@ -235,8 +276,20 @@ function render_category_posts_block( $attributes ) {
 		}
 	}
 
+	// get_block_wrapper_attributes() is what actually applies the block-supports
+	// classes (e.g. "aligncenter" from the toolbar's alignment option) to a
+	// dynamic block's markup - core never adds them on its own, they only ever
+	// end up in $attributes and are otherwise silently dropped by a hardcoded
+	// wrapper like the one this used to build.
+	$wrapper_attributes = get_block_wrapper_attributes(
+		array(
+			'id'    => $dom_id,
+			'class' => WIDGET_BASE_ID . '-block',
+		)
+	);
+
 	return ( '' !== $css ? '<style>' . $css . '</style>' : '' ) .
-		'<div id="' . esc_attr( $dom_id ) . '" class="' . WIDGET_BASE_ID . '-block">' . $ret . '</div>';
+		'<div ' . $wrapper_attributes . '>' . $ret . '</div>';
 }
 
 /**
@@ -250,7 +303,7 @@ function category_posts_block_init() {
 
 	$script_asset_path = "$dir/build/index.asset.php";
 	if ( ! file_exists( $script_asset_path ) ) {
-		throw new Error(
+		throw new \Error(
 			'You need to run `npm start` or `npm run build` for the "tiptip/category-posts-block" block first.'
 		);
 	}
@@ -263,22 +316,6 @@ function category_posts_block_init() {
 		$script_asset['version']
 	);
 	wp_set_script_translations( 'tiptip-category-posts-block-editor', 'category-posts' );
-
-	$editor_css = 'build/style-index.css';
-	wp_register_style(
-		'tiptip-category-posts-block-editor',
-		plugins_url( $editor_css, __FILE__ ),
-		array(),
-		filemtime( "$dir/$editor_css" )
-	);
-
-	$style_css = 'build/style-index.css';
-	wp_register_style(
-		'tiptip-category-posts-block',
-		plugins_url( $style_css, __FILE__ ),
-		array(),
-		filemtime( "$dir/$style_css" )
-	);
 
 	register_block_type_from_metadata(
 		__DIR__,

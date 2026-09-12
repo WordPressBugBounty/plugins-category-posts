@@ -12,7 +12,7 @@ Plugin Name: Category Posts Widget
 Plugin URI: https://wordpress.org/plugins/category-posts/
 Description: Adds a widget that shows the most recent posts from a single category.
 Author: TipTopPress
-Version: 5.0.0
+Version: 5.1.0
 Author URI: https://tiptoppress.com
 Text Domain: category-posts
 Domain Path: /languages
@@ -25,8 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const VERSION        	= '5.0.0';
-const DOC_URL        	= 'https://tiptoppress.com/category-posts-widget/documentation-4-9/';
+const VERSION        	= '5.1.0';
+const DOC_URL        	= 'https://tiptoppress.com/category-posts-widget/documentation-5-0/';
 const PRO_URL        	= 'https://tiptoppress.com/term-and-category-based-posts-widget/';
 const SUPPORT_URL    	= 'https://wordpress.org/support/plugin/category-posts/';
 const SHORTCODE_NAME 	= 'catposts';
@@ -482,6 +482,11 @@ add_action( 'widgets_init', __NAMESPACE__ . '\register_widget' );
  **/
 function equal_cover_content_height( $number, $widgetsettings ) {
 
+	// When the text must not wrap the thumbnail, the layout is fully described by the
+	// markup and the CSS itemHTML()/getCSSRules() generate, so the script must not
+	// move the 'cpwp-wrap-text' class around at all.
+	$wrap_text = ! ( isset( $widgetsettings['text_do_not_wrap_thumb'] ) && $widgetsettings['text_do_not_wrap_thumb'] );
+
 	if ( isset( $widgetsettings['template'] ) && preg_match( '/%thumb%|%excerpt%/', $widgetsettings['template'] ) ) :
 		?>
 		<script type="text/javascript">
@@ -494,14 +499,25 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 				cat_posts_namespace.layout_wrap_text = {
 					<?php	/* Handle add class */ echo "\r\n"; ?>
 					add : function(_this){
-						var _that = jQuery(_this);
-						if (_that.find('p.cpwp-excerpt-text').height() < _that.find('.cat-post-thumbnail').height()) { <?php /* don't move class to do the CSS hack, line's height is smaller as thumb */ echo "\r\n"; ?>
-							_that.find('p.cpwp-excerpt-text').closest('.cpwp-wrap-text-stage').removeClass( "cpwp-wrap-text" );
-							_that.find('p.cpwp-excerpt-text').addClass( "cpwp-wrap-text" ); <?php /* don't do the CSS hack, just set the class */ echo "\r\n"; ?>
-						}else{ <?php /* add the CSS hack, it's needed, text is wrapping, line's height is higher as thumb */ echo "\r\n"; ?>
-							_that.find('p.cpwp-excerpt-text').removeClass( "cpwp-wrap-text" );
-							_that.find('p.cpwp-excerpt-text').closest('.cpwp-wrap-text-stage').addClass( "cpwp-wrap-text" ); <?php /* text is wrapping, do the CSS hack */ echo "\r\n"; ?>
+						var _that  = jQuery(_this),
+							_text  = _that.find('p.cpwp-excerpt-text'),
+							_stage = _text.closest('.cpwp-wrap-text-stage');
+
+						if ( 0 === _text.length ) {
+							return;
 						}
+						<?php	/* Measure from a defined state: the class on the paragraph, so its
+								height is the clamped text height no matter what the server side
+								or a previous run left behind. */ echo "\r\n"; ?>
+						_stage.removeClass( "cpwp-wrap-text" );
+						_text.addClass( "cpwp-wrap-text" );
+
+						if (_text.height() < _that.find('.cat-post-thumbnail').height()) { <?php /* don't move class to do the CSS hack, line's height is smaller as thumb */ echo "\r\n"; ?>
+							return; <?php /* don't do the CSS hack, the class is already on the paragraph */ echo "\r\n"; ?>
+						}
+						<?php /* add the CSS hack, it's needed, text is wrapping, line's height is higher as thumb */ echo "\r\n"; ?>
+						_text.removeClass( "cpwp-wrap-text" );
+						_stage.addClass( "cpwp-wrap-text" );
 						return;
 					},
 					<?php	/* Wait for image is loaded */ echo "\r\n"; ?>
@@ -565,6 +581,7 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 
 				let widget = jQuery('#<?php echo esc_attr( $number ); ?>');
 
+				<?php if ( $wrap_text ) : ?>
 				<?php	/* Gutenberg Editor load or change (DOM changes) */ echo "\r\n"; ?>
 				const observer = new MutationObserver(function () {
 					let widget = jQuery('#<?php echo esc_attr( $number ); ?>');
@@ -578,10 +595,13 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 					subtree: true,
 					characterData: true
 				});
+				<?php endif; echo "\r\n"; ?>
 
 				<?php	/* DOM ready */ echo "\r\n"; ?>
 				jQuery( document ).ready(function () {
+					<?php if ( $wrap_text ) : ?>
 					cat_posts_namespace.layout_wrap_text.setClass(widget);
+					<?php endif; echo "\r\n"; ?>
 					<?php	/* No ratio calculation if one or more dimensions is set to 0 */ echo "\r\n"; ?>
 					<?php	if ( isset( $widgetsettings['thumb_w'] ) && 0 !== intval( $widgetsettings['thumb_w'] ) &&
 								isset( $widgetsettings['thumb_h'] ) && 0 !== intval( $widgetsettings['thumb_h'] ) ) : echo "\r\n"; ?>
@@ -590,7 +610,9 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 				});
 
 				jQuery(window).on('load resize', function() {
+					<?php if ( $wrap_text ) : ?>
 					cat_posts_namespace.layout_wrap_text.setClass(widget);
+					<?php endif; echo "\r\n"; ?>
 					<?php	/* No ratio calculation if one or more dimensions is set to 0 */ echo "\r\n"; ?>
 					<?php	if ( isset( $widgetsettings['thumb_w'] ) && 0 !== intval( $widgetsettings['thumb_w'] ) &&
 								isset( $widgetsettings['thumb_h'] ) && 0 !== intval( $widgetsettings['thumb_h'] ) ) : echo "\r\n"; ?>
@@ -598,8 +620,10 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 					<?php	endif; echo "\r\n"; ?>
 				});
 
-				// low-end mobile 
+				// low-end mobile
+				<?php if ( $wrap_text ) : ?>
 				cat_posts_namespace.layout_wrap_text.setClass(widget);
+				<?php endif; echo "\r\n"; ?>
 				<?php	/* No ratio calculation if one or more dimensions is set to 0 */ echo "\r\n"; ?>
 				<?php	if ( isset( $widgetsettings['thumb_w'] ) && 0 !== intval( $widgetsettings['thumb_w'] ) &&
 							isset( $widgetsettings['thumb_h'] ) && 0 !== intval( $widgetsettings['thumb_h'] ) ) : echo "\r\n"; ?>
@@ -753,6 +777,7 @@ function default_settings() {
 		'thumb_fluid_width'      => 100,
 		'thumb_h'                => get_option( 'thumbnail_size_h', 150 ),
 		'thumb_hover'            => 'none',
+		'thumb_symbols'          => false,
 		'hide_post_titles'       => false,
 		'excerpt_radio'          => __( 'excerpt', 'category-posts' ),
 		'excerpt_lines'          => 4,
