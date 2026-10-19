@@ -61,7 +61,7 @@
 		},
 		"order": {
 			"type": "boolean",
-			"default": true
+			"default": false
 		},
 		"excludeCurrentPost": {
 			"type": "boolean",
@@ -233,10 +233,14 @@
 		},
 		"ver": {
 			"type": "string",
-			"default": "5.1.1"
+			"default": "5.1.2"
 		},
 		"instanceId": {
 			"type": "number"
+		},
+		"shownTools": {
+			"type": "array",
+			"default": []
 		}
 	},
 	"supports": {

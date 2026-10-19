@@ -12,7 +12,7 @@ Plugin Name: Category Posts Block
 Plugin URI: https://wordpress.org/plugins/category-posts/
 Description: Shows a list of recent posts from a category - with thumbnails, excerpt and a load more button.
 Author: TipTopPress
-Version: 5.1.1
+Version: 5.1.2
 Author URI: https://tiptoppress.com
 Text Domain: category-posts
 Domain Path: /languages
@@ -25,9 +25,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const VERSION        	= '5.1.1';
+const VERSION        	= '5.1.2';
 const DOC_URL        	= 'https://tiptoppress.com/category-posts-widget/documentation-5-0/';
-const PRO_URL        	= 'https://tiptoppress.com/term-and-category-based-posts-widget/';
+const PRO_URL        	= 'https://demo.tiptoppress.com/';
 const SUPPORT_URL    	= 'https://wordpress.org/support/plugin/category-posts/';
 const SHORTCODE_NAME 	= 'catposts';
 const SHORTCODE_META 	= 'categoryPosts-shorcode';
@@ -454,7 +454,7 @@ function add_action_links( $links ) {
 
 	if ( ! class_exists( '\\termcategoryPostsPro\\Widget' ) ) {
 		$pro_link = array(
-			'<a target="_blank" href="' . esc_url( PRO_URL ) . '">' . esc_html__( 'Get the Pro version', 'category-posts' ) . '</a>',
+			'<a target="_blank" style="color:#00a32a;font-weight:700;" href="' . esc_url( PRO_URL ) . '">' . esc_html__( 'Get the Pro version', 'category-posts' ) . '</a>',
 		);
 
 		$links = array_merge( $pro_link, $links );
@@ -546,34 +546,23 @@ function equal_cover_content_height( $number, $widgetsettings ) {
 					<?php	/* Handle replace */ echo "\r\n"; ?>
 					replace : function(_this){
 						var _that = jQuery(_this),
-						resp_w = _that.width(),
-						resp_h = _that.height(),
 						orig_w = _that.data('cat-posts-width'),
 						orig_h = _that.data('cat-posts-height');
-						<?php	/* replace height */ echo "\r\n"; ?>
-						if( resp_w < orig_w ){
-							_that.height( resp_w * orig_h / orig_w );
-						} else {
-							_that.height( '' );
+
+						if( ! orig_w || ! orig_h ){
+							return;
 						}
-						return;
-					},
-					<?php	/* Wait for image is loaded */ echo "\r\n"; ?>
-					handleLazyLoading : function(_this) {
-						var width = jQuery(_this).width();
-						<?php	/* image is loaded */ echo "\r\n"; ?>
-						if( 0 !== width ){
-							cat_posts_namespace.layout_img_size.replace(_this);
-						} else {
-							jQuery(_this).one("load", function(){
-								cat_posts_namespace.layout_img_size.replace(_this);
-							});
-						}
+						<?php	/* Hand the ratio to the browser instead of measuring the width here
+								and writing a height calculated from it: an image which is not
+								loaded or not displayed yet has no width to measure. The ratio
+								holds for such an image as well, and it keeps holding when the
+								width changes, without running again. */ echo "\r\n"; ?>
+						_that.css( { 'aspect-ratio' : orig_w + ' / ' + orig_h, 'height' : 'auto' } );
 						return;
 					},
 					setHeight : function (widget) {
 						jQuery(widget).find('.cat-post-item img').each(function(){
-							cat_posts_namespace.layout_img_size.handleLazyLoading(this);
+							cat_posts_namespace.layout_img_size.replace(this);
 						});
 						return;
 					}
